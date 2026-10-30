@@ -1,0 +1,9 @@
+mujoco==3.17.0
+numpy==2.5.4
+gymnasium==1.4.0
+stable-baselines3==2.9.2
+torch==2.15.0
+imageio==2.38.1
+imageio-ffmpeg==0.7.0
+matplotlib==3.11.2
+pillow==13.0.0
