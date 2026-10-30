@@ -1,25 +1,45 @@
-# 強化学習で障害物を避けて走る自律移動ロボット
+# こぼさない配膳ロボット — 強化学習 × 物理に基づく安全層
 
-MuJoCo 上の2輪ロボットが、LiDAR だけを頼りに、ランダムに置かれた障害物を避けてゴールへ向かう。
-方策は強化学習（PPO）で獲得する。Physical AI 応用1 最終課題の提出物。
+人が行き交うレストランで、天板に**固定していないコップ**を載せた2輪ロボットが、指定のテーブルの横まで
+**ぶつからず・こぼさず・止まって**届ける。Physical AI 応用1 最終課題の提出物。
 
-| | 内容 |
-|---|---|
-| シミュレータ | MuJoCo（摩擦・接触を含む物理モデル。グリッドワールドではない） |
-| ロボット | 左右独立駆動の2輪 + 転倒防止キャスター |
-| 観測（28次元） | LiDAR 24本の距離 / ゴールの距離・方位 / 前進速度・回転速度 |
-| 行動（2次元） | 左右の車輪の速度指令 |
-| 報酬 | ゴールへ近づいた距離 ×4 − 0.01 / 到達 +10 / 衝突 −5 |
-| 学習 | Stable-Baselines3 PPO（MLP 128×128）、8並列、300万ステップ、CPUのみ |
-| 評価 | 学習に使っていない配置 300 回（シード 100000〜） |
+- シミュレータ：MuJoCo 3.17（コップは剛体。急加速・急停止・衝突で本当に倒れる）
+- AI：LiDAR などのセンサから車輪の速度指令を出す方策を PPO（強化学習）で獲得
+- 安全層：進行方向の LiDAR 距離 *d* から速度上限 v_max = √(2·a·(d − 0.05))、a = 1.5 m/s²
+  （コップを倒さない減速度で止まれる速度）。後退は 0.25 m/s まで
+- 比較：直進制御（センサなし）、ポテンシャル法（古典・別シードで調整済み）、アブレーション3種（安全層なし／コップなしで学習／物理ランダム化なし）
 
-## 結果（`results/eval.json`）
+## 結果（学習に使っていない店内配置 各300回）
 
-| 方策 | 成功率 | 衝突率 |
-|---|---|---|
-| 学習済み PPO | 95.3 % | 4.0 % |
-| LiDAR を使わず直進（AIなし） | 0.3 % | 99.7 % |
-| ランダム行動 | 0.0 % | 7.7 % |
+<!-- results -->
+
+**標準条件**
+
+| 手法 | 成功 | 衝突・人との接触 | こぼした | 時間切れ |
+|---|---|---|---|---|
+| 直進制御（センサなし） | 43.3% | 56.7% | 0.0% | 0.0% |
+| ポテンシャル法（古典・調整済み） | 81.3% | 0.0% | 0.0% | 18.7% |
+| ポテンシャル法＋安全層 | 81.3% | 0.0% | 0.0% | 18.7% |
+| PPO単体（安全層なし） | 85.3% | 11.7% | 3.0% | 0.0% |
+| PPO＋安全層／コップなしで学習 | 64.7% | 0.0% | 35.0% | 0.3% |
+| PPO＋安全層／物理ランダム化なし | 94.7% | 0.0% | 4.3% | 1.0% |
+| **提案：PPO＋安全層**（3シード） | 96.3% ±0.9 | 0.0% | 2.6% | 1.1% |
+
+**厳しい条件（常に4人＋物理パラメータの幅1.6倍）**
+
+| 手法 | 成功 | 衝突・人との接触 | こぼした | 時間切れ |
+|---|---|---|---|---|
+| 直進制御（センサなし） | 41.0% | 59.0% | 0.0% | 0.0% |
+| ポテンシャル法（古典・調整済み） | 79.7% | 0.0% | 0.0% | 20.3% |
+| ポテンシャル法＋安全層 | 79.7% | 0.0% | 0.0% | 20.3% |
+| PPO単体（安全層なし） | 82.0% | 16.0% | 1.7% | 0.3% |
+| PPO＋安全層／コップなしで学習 | 65.3% | 0.0% | 34.0% | 0.7% |
+| PPO＋安全層／物理ランダム化なし | 93.0% | 0.3% | 6.0% | 0.7% |
+| **提案：PPO＋安全層**（3シード） | 94.8% ±1.0 | 0.3% | 3.8% | 1.1% |
+
+<!-- /results -->
+
+詳細は `report/説明資料_PAI最終課題_isk091223.pdf`、設計の変遷は `results/design_iterations.md`。
 
 ## 再現手順
 
@@ -27,22 +47,30 @@ MuJoCo 上の2輪ロボットが、LiDAR だけを頼りに、ランダムに置
 python3.12 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-python train.py 3000000 0      # 学習 -> models/final.zip, models/curve.csv
-python evaluate.py models/final 300   # 評価 -> results/eval.json
-python plot_curve.py           # 学習曲線 -> results/learning_curve.png
-MUJOCO_GL=glfw python make_video.py models/final results/demo.mp4   # 動画（macOS）
-```
+# 学習（1本 約20分 / MacBook Air M3, CPUのみ）。全モデルは run_queue.sh で順に学習できる
+python train.py --variant main --seed 0 --steps 6000000
 
-学習済みモデル `models/final.zip` を同梱しているので、`evaluate.py` と `make_video.py` は学習なしで実行できる。
+# 評価（学習済みモデルを同梱しているので、学習なしで実行できる）
+python evaluate.py --n 300 --models models/main_s0 models/main_s1 models/main_s2 \
+       models/nocup_s0 models/noshield_s0 models/nodr_s0 --out results/eval.json
+python analyze.py          # 推論時間・安全層の介入率・失敗の内訳
+python plot_results.py     # 図と results/summary.json
+python report/build_report.py   # レポートPDF（Google Chrome が必要）
+MUJOCO_GL=glfw python make_video.py --out results/demo.mp4   # 動画（macOS）
+```
 
 ## ファイル
 
-- `robot_env.py` — MuJoCo 環境（ロボット・障害物・LiDAR・報酬・衝突判定）
-- `train.py` — PPO 学習
-- `evaluate.py` — 学習済み方策とベースラインの比較評価
-- `make_video.py` / `plot_curve.py` — 動画・図の生成
-- `report/` — 提出レポートの元（HTML）
+| ファイル | 内容 |
+|---|---|
+| `serving_env.py` | 店内・ロボット・コップ・人・LiDAR・安全層・報酬（Gymnasium 環境） |
+| `controllers.py` | 比較用の古典手法（直進制御・ポテンシャル法）と学習済み方策のラッパー |
+| `train.py` | PPO 学習（`--variant main / nocup / noshield / nodr`） |
+| `evaluate.py` / `analyze.py` | 評価（成功・衝突・こぼし・時間切れ・加速度・後退時間・安全層の介入率）と補助分析 |
+| `plot_results.py` / `make_video.py` / `report/` | 図・動画・レポートの生成 |
+| `models/` | 学習済みモデルと学習曲線（CSV） |
+| `results/` | 評価結果（JSON）、図、ポテンシャル法のチューニング記録、設計の変遷 |
 
 ## 限界
 
-2D 平面・静止障害物のみ。学習は1シードのみで、シード間のばらつきは測っていない。実機での検証はしていない。
+シミュレーションのみ（実機未検証）。人の動きは単純なモデル。コップは剛体で、液体の揺れは扱っていない。

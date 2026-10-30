@@ -1,0 +1,14 @@
+Potential-field baseline tuning (tuning seeds 50000-50039, standard scenario, no safety layer).
+Evaluation seeds start at 100000, so tuning and evaluation never overlap.
+d0=0.7 k=0.02 fade=1.2: success 80% coll 0% timeout 20%
+d0=0.7 k=0.02 fade=2.0: success 82% coll 0% timeout 18%
+d0=0.7 k=0.05 fade=1.2: success 88% coll 0% timeout 12%
+d0=0.7 k=0.05 fade=2.0: success 85% coll 0% timeout 15%
+d0=0.9 k=0.02 fade=1.2: success 88% coll 0% timeout 12%
+d0=0.9 k=0.02 fade=2.0: success 82% coll 0% timeout 18%
+d0=0.9 k=0.05 fade=1.2: success 88% coll 0% timeout 12%
+d0=0.9 k=0.05 fade=2.0: success 90% coll 0% timeout 10%   <- chosen (best, not on the grid edge)
+d0=1.1 k=0.02 fade=1.2: success 82% coll 0% timeout 18%
+d0=1.1 k=0.02 fade=2.0: success 80% coll 0% timeout 20%
+d0=1.1 k=0.05 fade=1.2: success 88% coll 0% timeout 12%
+d0=1.1 k=0.05 fade=2.0: success 90% coll 0% timeout 10%

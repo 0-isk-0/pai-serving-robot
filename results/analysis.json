@@ -1,0 +1,149 @@
+{
+ "policy_latency_ms": 0.06501845849561505,
+ "shield_active_rate": 0.07490341965946487,
+ "episodes": 300,
+ "spill_by_people": {
+  "0": {
+   "episodes": 60,
+   "spills": 0
+  },
+  "1": {
+   "episodes": 74,
+   "spills": 0
+  },
+  "2": {
+   "episodes": 66,
+   "spills": 6
+  },
+  "3": {
+   "episodes": 44,
+   "spills": 3
+  },
+  "4": {
+   "episodes": 56,
+   "spills": 3
+  }
+ },
+ "failures": [
+  {
+   "seed": 100025,
+   "kind": "spill",
+   "people": 2,
+   "peak_acc": 6.96,
+   "shield_in_last_0_5s": 0,
+   "goal_dist": 2.77
+  },
+  {
+   "seed": 100041,
+   "kind": "spill",
+   "people": 2,
+   "peak_acc": 3.94,
+   "shield_in_last_0_5s": 0,
+   "goal_dist": 1.11
+  },
+  {
+   "seed": 100081,
+   "kind": "spill",
+   "people": 4,
+   "peak_acc": 4.37,
+   "shield_in_last_0_5s": 1,
+   "goal_dist": 1.07
+  },
+  {
+   "seed": 100105,
+   "kind": "spill",
+   "people": 4,
+   "peak_acc": 4.32,
+   "shield_in_last_0_5s": 0,
+   "goal_dist": 0.14
+  },
+  {
+   "seed": 100128,
+   "kind": "spill",
+   "people": 2,
+   "peak_acc": 3.58,
+   "shield_in_last_0_5s": 1,
+   "goal_dist": 3.66
+  },
+  {
+   "seed": 100134,
+   "kind": "spill",
+   "people": 2,
+   "peak_acc": 3.76,
+   "shield_in_last_0_5s": 0,
+   "goal_dist": 1.01
+  },
+  {
+   "seed": 100154,
+   "kind": "spill",
+   "people": 2,
+   "peak_acc": 5.41,
+   "shield_in_last_0_5s": 1,
+   "goal_dist": 1.06
+  },
+  {
+   "seed": 100155,
+   "kind": "spill",
+   "people": 4,
+   "peak_acc": 5.57,
+   "shield_in_last_0_5s": 3,
+   "goal_dist": 0.1
+  },
+  {
+   "seed": 100180,
+   "kind": "timeout",
+   "people": 0,
+   "peak_acc": 5.04,
+   "shield_in_last_0_5s": 0,
+   "goal_dist": 1.37
+  },
+  {
+   "seed": 100184,
+   "kind": "spill",
+   "people": 3,
+   "peak_acc": 5.02,
+   "shield_in_last_0_5s": 0,
+   "goal_dist": 1.84
+  },
+  {
+   "seed": 100207,
+   "kind": "spill",
+   "people": 2,
+   "peak_acc": 4.43,
+   "shield_in_last_0_5s": 0,
+   "goal_dist": 0.98
+  },
+  {
+   "seed": 100232,
+   "kind": "timeout",
+   "people": 4,
+   "peak_acc": 4.58,
+   "shield_in_last_0_5s": 10,
+   "goal_dist": 1.5
+  },
+  {
+   "seed": 100246,
+   "kind": "spill",
+   "people": 3,
+   "peak_acc": 4.94,
+   "shield_in_last_0_5s": 0,
+   "goal_dist": 0.05
+  },
+  {
+   "seed": 100274,
+   "kind": "timeout",
+   "people": 3,
+   "peak_acc": 5.4,
+   "shield_in_last_0_5s": 0,
+   "goal_dist": 0.33
+  },
+  {
+   "seed": 100284,
+   "kind": "spill",
+   "people": 3,
+   "peak_acc": 4.72,
+   "shield_in_last_0_5s": 1,
+   "goal_dist": 1.57
+  }
+ ]
+}

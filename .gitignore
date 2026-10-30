@@ -1,5 +1,7 @@
 .venv/
 __pycache__/
 *.log
+logs_*.txt
 MUJOCO_LOG.TXT
 results/demo.mp4
+models/*_best.zip

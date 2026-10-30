@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><title>PAI最終課題 説明資料</title>
+<style>
+@page { size: A4; margin: 14mm 14mm; }
+body { font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif; font-size: 9.8pt; line-height: 1.6; color: #1b2230; }
+h1 { font-size: 18pt; margin: 0 0 1mm; }
+h2 { font-size: 12.5pt; border-left: 4px solid #2b6cb0; padding-left: 8px; margin: 5mm 0 2mm; break-after: avoid; }
+h3 { font-size: 10.5pt; margin: 3mm 0 1mm; break-after: avoid; }
+.sub { color: #566; margin-bottom: 3mm; }
+.key { background: #eef6f0; border: 1px solid #b7d8c0; border-radius: 6px; padding: 2mm 4mm; margin: 2mm 0; }
+table { border-collapse: collapse; margin: 1.5mm 0; break-inside: avoid; }
+th, td { border: 1px solid #b8c2d0; padding: 1.5px 7px; font-size: 8.9pt; }
+th { background: #eef3fa; }
+table.res td:not(:first-child) { text-align: right; }
+tr.hl td { background: #f0f8f2; }
+.sd { color: #667; font-size: 8pt; }
+img { max-width: 100%; }
+figure { margin: 2mm 0; break-inside: avoid; }
+figcaption { font-size: 8.4pt; color: #566; text-align: center; }
+ul, ol { margin: 1mm 0 1mm 5mm; padding: 0; }
+code { background: #f1f4f8; padding: 0 3px; font-size: 8.8pt; }
+.note { font-size: 8.6pt; color: #556; }
+</style></head><body>
+
+<h1>こぼさない配膳ロボット</h1>
+<div class="sub">人が行き交うレストランを、強化学習（PPO）と物理に基づく安全層で走る ／ Physical AI 応用1 最終課題 説明資料</div>
+
+<div class="key">
+<b>結果の要点</b>（学習に使っていない店内配置 各300回）：提案手法の配膳成功率は <b>$main_succ</b>（3シード平均、標準偏差 $main_succ_sd ポイント）。
+調整済みの古典手法（ポテンシャル法）は $pf_succ、センサを使わない直進制御は $gg_succ。
+人が常に4人いて物理パラメータの幅を学習時の1.6倍に広げた厳しい条件でも $main_stress を保った。
+</div>
+
+<h2>1. 概要</h2>
+<p>2輪ロボットの天板に<b>固定していないコップ</b>を載せ、テーブル・椅子の配置も歩く人も毎回変わるレストランで、
+指定されたテーブルの横まで運んで<b>止まって渡す</b>タスクを設計した。
+コップは MuJoCo 上の剛体なので、急加速・急停止・衝突で実際に倒れる。
+LiDAR などのセンサ情報から車輪の速度指令を出す方策を強化学習（PPO）で獲得し、
+「残り距離でコップをこぼさずに止まれる速度」を上限とする安全層と組み合わせた。</p>
+
+<h2>2. 目的</h2>
+<p>配膳ロボットはすでに飲食店で使われているが、人の多い店内でトレーの上の飲み物をこぼさず運ぶには、
+<b>①ぶつからない ②こぼさない ③目的地で止まる</b>を同時に満たす必要がある。
+「ぶつからない」だけなら古典的な手法でも実現できるが、物を運ぶ品質（加速度）と、到着の速さ・確実さは互いにぶつかり合う。
+本課題の目的は、この複数の要求を<b>報酬として与えるだけで</b>、学習によって両立する動き方を獲得できるかを確かめること、
+そして<b>どの工夫が効いているのかを比較実験で数値として示す</b>ことである。</p>
+
+<h2>3. システム構成</h2>
+<table>
+<tr><th>要素</th><th>内容</th></tr>
+<tr><td>シミュレータ</td><td>MuJoCo 3.17（物理 200 Hz、制御 20 Hz）。摩擦・接触・慣性を含む。課題で認められている「他のツール」として選択した（理由は付録）</td></tr>
+<tr><td>店内</td><td>8 m × 6 m。円形テーブル 4〜6卓と椅子をランダム配置。0〜4人が店内を歩く（ロボットが正面にいると立ち止まる）</td></tr>
+<tr><td>ロボット</td><td>左右独立駆動の2輪（最高 0.8 m/s）。天板にコップ（剛体、質量 0.3 kg、直径 7 cm・高さ 12 cm）</td></tr>
+<tr><td>観測（81次元）</td><td>LiDAR 36本の距離と前時刻からの変化（人の動きを捉える）／ゴールの距離・方位／速度・角速度／IMU加速度／直前に実行された指令</td></tr>
+<tr><td>行動</td><td>左右の車輪の速度指令（連続値）</td></tr>
+<tr><td>方策</td><td>多層パーセプトロン 256×256、PPO（Stable-Baselines3）、8並列・600万ステップ（1本 約20分、CPUのみ）</td></tr>
+<tr><td>安全層</td><td>進行方向 ±50° の LiDAR 距離 <i>d</i> から、速度上限 <i>v</i><sub>max</sub> = √(2·<i>a</i>·(<i>d</i> − 0.05))（<i>a</i> = 1.5 m/s²：コップが倒れない減速度）。後退は 0.25 m/s まで</td></tr>
+<tr><td>到着判定</td><td>ゴールの円（半径 25 cm）内で 0.25 m/s 未満になったら、安全層と同じ減速度で完全に停止させ、停止後もコップが立っていれば配膳成功（学習・評価とも）</td></tr>
+<tr><td>報酬</td><td>ゴールに近づいた距離 ×3、配膳成功 +10、衝突 −10、こぼす −5、
+2 m/s² を超える加速度、人・障害物への接近、後退、安全層の介入量にそれぞれ小さな負の報酬</td></tr>
+<tr><td>ランダム化</td><td>毎エピソード：店内配置・人数・歩行速度／車体質量 ±25%・コップ質量と摩擦 ±30%・車輪摩擦・モーター特性 ±30%／LiDAR 雑音（σ = 2 cm）と欠測 2%</td></tr>
+</table>
+
+<h2>4. 工夫した点</h2>
+<ol>
+<li><b>「こぼす」を物理で起こす。</b>こぼれ判定を加速度のしきい値で決めるのではなく、コップを剛体として載せた。
+急ブレーキで本当に前へ倒れることを確かめてから学習に使った（動画冒頭）。</li>
+<li><b>学習と安全層の役割分担。</b>実際の業務用移動ロボットが LiDAR の安全フィールドで減速・停止するのにならい、
+「どこへどう曲がるか・どう運ぶか」を学習に、「物理的に止まれる速度」を数式の安全層に任せた。
+安全層の上限は「コップを倒さない減速度で止まれる速度」から導いており、安全とこぼさないことが矛盾しない。</li>
+<li><b>安全層を「悪用」させない設計。</b>後退速度の上限を入れた直後、方策は走行時間の 95% を後ろ向きで走り、
+安全層の上限をなめらかな速度リミッターとして使う抜け道を見つけた（成功率は高いまま）。
+安全層が指令を修正した量そのものに罰を与え、後退にも罰を与えることでこれを解消した。以後、全手法で「後退していた時間」と「安全層の介入率」を測っている。</li>
+<li><b>公平な比較。</b>古典手法（ポテンシャル法）は、評価とは別のシードでパラメータを探索して最良の設定にした（<code>results/pf_tuning.txt</code>）。
+さらに古典手法にも同じ安全層を付けた場合を比較し、安全層の効果だけで差がついていないかを確かめた。</li>
+<li><b>アブレーション。</b>「安全層なし」「コップなしで学習」「物理ランダム化なし」の3種を学習し、各要素が何に効いているかを切り分けた（効果が確認できなかった要素もそのまま報告する）。提案手法は乱数シード3つで学習し、ばらつきも示した。</li>
+</ol>
+
+<h2>5. 結果</h2>
+<p>評価は、学習・チューニングに使っていない店内配置（シード 100000〜100299）での決定的な方策による。</p>
+<h3>標準条件（学習時と同じ分布）</h3>
+$table_standard
+<h3>厳しい条件（常に4人が歩行＋物理パラメータの幅を学習時の1.6倍）</h3>
+$table_stress
+<figure><img src="../results/fig_results.png"><figcaption>図1 手法ごとの結果の内訳（緑が成功、それ以外は失敗の種類）</figcaption></figure>
+<figure><img src="../results/fig_learning.png" style="width:72%;display:block;margin:auto"><figcaption>図2 学習曲線（学習中・確率的方策。帯は3シードの最小〜最大）</figcaption></figure>
+
+<h2>6. 考察</h2>
+$discussion
+
+<h2>7. 開発の過程で起きた問題と対処</h2>
+<table>
+<tr><th>起きたこと</th><th>原因</th><th>対処</th></tr>
+<tr><td>障害物をすり抜ける（初期版）</td><td>MuJoCo の静止体は実行時に動かしても当たり判定が元の位置に残る</td><td>動く物はすべて mocap ボディにした</td></tr>
+<tr><td>コップが空高く吹き飛ぶ</td><td>質量を変えた後に派生定数を再計算していなかった</td><td><code>mj_setConst</code> を呼ぶ</td></tr>
+<tr><td>静かに走ってもコップがずれていく（30秒で 9 cm）</td><td>柔らかい接触によるクリープ</td><td>楕円摩擦円錐・<code>impratio</code>・ねじれ摩擦（30秒で 1 cm 未満に）</td></tr>
+<tr><td>学習した方策がバックで椅子に突っ込む（衝突 約20%）</td><td>報酬だけでは狭い場所での減速を学べない</td><td>物理に基づく安全層を導入</td></tr>
+<tr><td>後ろ向きに走り続ける抜け道</td><td>安全層の速度上限を利用</td><td>介入量への罰（上記 工夫3）</td></tr>
+<tr><td>「配膳完了」の直後にコップが倒れていた</td><td>到着の瞬間に成功として打ち切っていたため、方策が全速でゴールに突っ込み急停止していた（判定の穴）</td><td>到着後に完全停止させ、コップが立っていることを成功の条件にして全モデルを学習し直した</td></tr>
+</table>
+<p class="note">いずれも「結果が良すぎる・不自然」と感じた時点で、単純な再現実験を作って原因を確かめてから直した。初期版の結果（すり抜けによる見かけの成功）は破棄している。</p>
+
+<h2>8. 限界と今後</h2>
+$limitations
+
+<h2>付録：使用ツールと再現方法</h2>
+<p>MuJoCo 3.17 / Gymnasium / Stable-Baselines3 2.9 / PyTorch（CPUのみ、MacBook Air M3）。
+ROS 2 + Gazebo ではなく MuJoCo を選んだのは、(1) コップのような小物体の接触・摩擦を細かく設定でき、(2) 1秒に数千ステップの速さで強化学習を回せるためである。
+方策の推論は1回 $latency ミリ秒で、20 Hz 制御に十分間に合う。
+コード一式・学習済みモデル・評価結果は GitHub の公開リポジトリにあり、README の手順で再現できる（<code>evaluate.py</code> と <code>make_video.py</code> は学習なしで実行可能）。
+動画は等倍速を基本とし、2倍速の区間と0.4倍速（スロー）の区間は画面右上に明記した。</p>
+</body></html>
